@@ -43,7 +43,7 @@ const Signup = () => {
 
       if (response.ok) {
         // Auto-login after successful registration
-        login(data.token, data.user);
+        login(data);
         navigate("/");
       } else {
         setError(data.message || "Registration failed");

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Send, ArrowLeft, Users } from "lucide-react";
+import { Send, ArrowLeft, Users, Hash } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import MessageBubble from "../components/MessageBubble";
 import TypingIndicator from "../components/TypingIndicator";
+import io from "socket.io-client";
 
 const ChatRoom = () => {
   const { roomId } = useParams();
@@ -18,58 +19,44 @@ const ChatRoom = () => {
 
   useEffect(() => {
     // Connect to WebSocket
-    const ws = new WebSocket(`ws://localhost:4000`);
+    const newSocket = io("http://localhost:4000");
+    setSocket(newSocket);
 
-    ws.onopen = () => {
+    newSocket.on("connect", () => {
       setIsConnected(true);
-      ws.send(
-        JSON.stringify({
-          type: "join_room",
-          room: roomId,
-          username: user?.username,
-        })
-      );
-    };
+      newSocket.emit("join_room", roomId);
+    });
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "message") {
-        setMessages((prev) => [...prev, data]);
-      } else if (data.type === "typing") {
-        if (data.isTyping) {
-          setTypingUsers((prev) => [
-            ...prev.filter((u) => u !== data.username),
-            data.username,
-          ]);
-        } else {
-          setTypingUsers((prev) => prev.filter((u) => u !== data.username));
-        }
-      }
-    };
+    newSocket.on("receive_message", (data) => {
+      setMessages((prev) => [...prev, {
+        ...data,
+        username: data.sender,
+        message: data.content,
+        timestamp: data.timestamp
+      }]);
+    });
 
-    ws.onclose = () => {
+    newSocket.on("disconnect", () => {
       setIsConnected(false);
-    };
-
-    setSocket(ws);
+    });
 
     return () => {
-      ws.close();
+      newSocket.disconnect();
     };
   }, [roomId, user]);
 
   const sendMessage = () => {
     if (!newMessage.trim() || !socket) return;
 
-    const messageData = {
-      type: "message",
-      room: roomId,
-      username: user?.username,
-      message: newMessage,
+    const msgData = {
+      roomId: roomId,
+      content: newMessage,
       timestamp: new Date().toISOString(),
+      sender: user?.username,
+      receiver: roomId,
     };
 
-    socket.send(JSON.stringify(messageData));
+    socket.emit("send_message", msgData);
     setNewMessage("");
   };
 
@@ -81,28 +68,22 @@ const ChatRoom = () => {
   };
 
   const handleTyping = () => {
-    if (socket && !isTyping) {
+    if (socket && !isTyping && isConnected) {
       setIsTyping(true);
-      socket.send(
-        JSON.stringify({
-          type: "typing",
-          room: roomId,
-          username: user?.username,
-          isTyping: true,
-        })
-      );
+      socket.emit("typing", {
+        room: roomId,
+        username: user?.username,
+        isTyping: true,
+      });
 
       setTimeout(() => {
         setIsTyping(false);
-        if (socket) {
-          socket.send(
-            JSON.stringify({
-              type: "typing",
-              room: roomId,
-              username: user?.username,
-              isTyping: false,
-            })
-          );
+        if (socket && socket.connected) {
+          socket.emit("typing", {
+            room: roomId,
+            username: user?.username,
+            isTyping: false,
+          });
         }
       }, 3000);
     }
@@ -120,11 +101,11 @@ const ChatRoom = () => {
             <ArrowLeft size={20} />
           </button>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center">
-              <span className="text-indigo-500 text-lg font-bold">#</span>
+            <div className="w-10 h-10 bg-indigo-500/20 rounded-full flex items-center justify-center">
+              <Hash className="text-indigo-500" size={20} />
             </div>
             <div>
-              <h2 className="font-semibold text-white">{roomId}</h2>
+              <h2 className="font-semibold text-white">#{roomId}</h2>
               <p className="text-sm text-gray-400">
                 {isConnected ? "Connected" : "Connecting..."}
               </p>
@@ -138,11 +119,11 @@ const ChatRoom = () => {
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
-              <div className="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-20 h-20 bg-gray-800/50 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 glow-effect">
                 <Users size={32} className="text-gray-500" />
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">
-                Welcome to #{roomId}
+                Welcome to #{roomId}!
               </h3>
               <p className="text-gray-400">
                 Start the conversation by sending a message
@@ -180,7 +161,7 @@ const ChatRoom = () => {
               handleTyping();
             }}
             onKeyPress={handleKeyPress}
-            placeholder="Type your message..."
+            placeholder={`Message #${roomId}...`}
             className="input-modern flex-1"
             disabled={!isConnected}
           />

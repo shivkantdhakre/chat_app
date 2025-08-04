@@ -11,14 +11,19 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ChatRoom from "./pages/ChatRoom";
+import PrivateChat from "./pages/PrivateChat";
 import LoadingSpinner from "./components/LoadingSpinner";
 import ParticleBackground from "./components/ParticleBackground";
 import { useState } from "react";
-import { LogOut, User, Settings } from "lucide-react";
+import { LogOut, User, Settings, MessageCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 function PrivateChatWrapper() {
   const { user, logout, loading } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const navigate = useNavigate();
 
   if (loading) {
     return (
@@ -32,6 +37,14 @@ function PrivateChatWrapper() {
     return <Navigate to="/login" />;
   }
 
+  const handleSelectUser = (selectedUser) => {
+    setSelectedUser(selectedUser);
+    setSelectedRoom(null);
+  };
+
+  const handleJoinRoom = (room) => {
+    navigate(`/chat/${room.name}`);
+  };
   return (
     <ChatLayout
       isSidebarOpen={isSidebarOpen}
@@ -64,31 +77,29 @@ function PrivateChatWrapper() {
         <div className="p-6">
           <Home
             currentUser={user}
-            onSelectUser={(user) => {
-              // Handle user selection
-              console.log("Selected user:", user);
-            }}
-            onJoinRoom={(room) => {
-              // Handle room joining
-              console.log("Joining room:", room);
-            }}
+            onSelectUser={handleSelectUser}
+            onJoinRoom={handleJoinRoom}
           />
         </div>
       }
     >
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="w-24 h-24 bg-gray-800/50 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 glow-effect">
-            <User size={48} className="text-indigo-500" />
+      {selectedUser ? (
+        <PrivateChat currentUser={user} selectedUser={selectedUser} />
+      ) : (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="w-24 h-24 bg-gray-800/50 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6 glow-effect">
+              <MessageCircle size={48} className="text-indigo-500" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2 gradient-text">
+              Welcome to Web Chat
+            </h3>
+            <p className="text-gray-400">
+              Select a user or room to start chatting
+            </p>
           </div>
-          <h3 className="text-xl font-semibold text-white mb-2 gradient-text">
-            Welcome to Web Chat
-          </h3>
-          <p className="text-gray-400">
-            Select a user or room to start chatting
-          </p>
         </div>
-      </div>
+      )}
     </ChatLayout>
   );
 }

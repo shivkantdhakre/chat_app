@@ -1,4 +1,4 @@
-import { Message } from "../models/Message.js";
+import Message from "../models/Message.js";
 
 export const socketHandler = (io) => {
   io.on("connection", (socket) => {
@@ -10,14 +10,19 @@ export const socketHandler = (io) => {
     });
 
     socket.on("send_message", async (data) => {
-      // data: { roomId, content, timestamp, sender, receiver }
-      const msg = await Message.create({
-        sender: data.sender || "anonymous",
-        receiver: data.receiver || data.roomId,
-        content: data.content,
-        timestamp: data.timestamp,
-      });
-      io.to(data.roomId).emit("receive_message", msg);
+      try {
+        // data: { roomId, content, timestamp, sender, receiver }
+        const msg = await Message.create({
+          sender: data.sender || "anonymous",
+          receiver: data.receiver || data.roomId,
+          content: data.content,
+          timestamp: data.timestamp || new Date(),
+        });
+        io.to(data.roomId).emit("receive_message", msg);
+      } catch (error) {
+        console.error("Error saving message:", error);
+        socket.emit("error", { message: "Failed to send message" });
+      }
     });
 
     socket.on("disconnect", () => {
