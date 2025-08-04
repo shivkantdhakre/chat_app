@@ -165,32 +165,3 @@ export default function PrivateChat({ currentUser, selectedUser }) {
     </div>
   );
 }
-            <div
-              className={`px-4 py-2 rounded-xl max-w-xs text-white ${
-                msg.sender === "me" ? "bg-green-600" : "bg-gray-500"
-              }`}
-            >
-              {msg.content}
-            </div>
-          </div>
-        ))}
-        <div ref={chatEndRef} />
-      </div>
-
-      <div className="mt-4 flex gap-2">
-        <input
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Type your message..."
-          className="flex-1 p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-green-400"
-        />
-        <button
-          onClick={handleSend}
-          className="bg-green-600 text-white px-5 py-2 rounded-lg hover:bg-green-700 transition"
-        >
-          Send
-        </button>
-      </div>
-    </div>
-  );
-}
